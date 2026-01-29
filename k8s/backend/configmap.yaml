@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rag-backend-config
+  namespace: rag-agent
+data:
+  # ===== RAG CONFIGURATION =====
+  CHUNK_SIZE: "1024"
+  CHUNK_OVERLAP: "128"
+  EMBEDDING_MODEL: "sentence-transformers/all-MiniLM-L6-v2"
+  VECTOR_DIMENSION: "384"
+  SIMILARITY_THRESHOLD: "0.7"
+  HYBRID_SEARCH_WEIGHT_SEMANTIC: "0.7"
+  HYBRID_SEARCH_WEIGHT_KEYWORD: "0.3"
+  RERANK_MODEL: "cross-encoder/ms-marco-MiniLM-L-12-v2"
+  TOP_K_RESULTS: "5"
+
+  # ===== AGNO CONFIGURATION =====
+  AGNO_LOG_LEVEL: "INFO"
+  AGNO_ENABLE_MEMORY: "true"
+  AGNO_ENABLE_TOOLS: "true"
+
+  # ===== API CONFIGURATION =====
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  API_WORKERS: "4"
+  LOG_LEVEL: "INFO"
+
+  # ===== CORS =====
+  CORS_ORIGINS: '["http://localhost:3000","http://localhost:8501","http://chainlit:8501"]'
+  CORS_ALLOW_CREDENTIALS: "true"
+  CORS_ALLOW_METHODS: '["*"]'
+  CORS_ALLOW_HEADERS: '["*"]'
+
+  # ===== ENVIRONMENT =====
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+
+  # ===== DATABASE =====
+  SQLALCHEMY_ECHO: "false"
+
+  # ===== MINIO STORAGE =====
+  MINIO_BUCKET_NAME: "rag-documents"
+  MINIO_USE_SSL: "false"
+
+  # ===== GOOGLE DRIVE =====
+  GOOGLE_DRIVE_ENABLED: "true"
+
+  # ===== LLM - GEMINI FLASH =====
+  GEMINI_MODEL: "gemini-1.5-flash"
+  LLM_TEMPERATURE: "0.3"
+  LLM_MAX_TOKENS: "2048"
+
+  # ===== AUTHENTICATION =====
+  JWT_ALGORITHM: "HS256"
+  JWT_EXPIRATION_HOURS: "24"

@@ -1,0 +1,31 @@
+[UI]
+name = "RAG Agent Solution"
+description = "Plataforma de Retrieval-Augmented Generation com Agentes Inteligentes"
+show_readme_as_default = false
+theme = "light"
+
+[Auth]
+enabled = true
+auth_type = "password"
+
+[Features]
+chat_history = true
+file_upload = true
+latex = true
+code_execution = false
+
+[Chat]
+max_tokens = 2048
+temperature = 0.3
+top_p = 0.9
+
+[Server]
+host = "0.0.0.0"
+port = 8501
+watch_for_changes = false
+
+[Database]
+enable_chat_history = true
+
+[Logging]
+level = "INFO"

@@ -1,0 +1,110 @@
+version: '3.9'
+
+services:
+  # PostgreSQL com PgVector
+  postgres:
+    image: pgvector/pgvector:pg15-latest
+    container_name: rag-postgres
+    environment:
+      POSTGRES_DB: rag_db
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: rag_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d rag_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO - Armazenamento de objetos
+  minio:
+    image: minio/minio:latest
+    container_name: rag-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - rag-network
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Backend - FastAPI com Agno
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: rag-backend
+    environment:
+      DATABASE_URL: postgresql://rag_user:rag_password@postgres:5432/rag_db
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET_NAME: rag-documents
+      MINIO_USE_SSL: "false"
+      GOOGLE_DRIVE_ENABLED: "true"
+      GOOGLE_DRIVE_CREDENTIALS_PATH: /app/secrets/google_drive_credentials.json
+      GOOGLE_DRIVE_FOLDER_ID: ${GOOGLE_DRIVE_FOLDER_ID}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_key_change_this_in_production}
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change_this_password}
+      ENVIRONMENT: development
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../backend:/app
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - rag-network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend - Chainlit
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: rag-frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+      BACKEND_API_URL: http://backend:8000/api
+      CHAINLIT_AUTH_SECRET: ${CHAINLIT_AUTH_SECRET:-your_chainlit_auth_secret_change_this}
+      ENVIRONMENT: development
+      DEBUG: "true"
+    ports:
+      - "8501:8501"
+    volumes:
+      - ../frontend:/app
+    depends_on:
+      - backend
+    networks:
+      - rag-network
+    command: chainlit run chainlit_app.py --host 0.0.0.0 --port 8501
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  rag-network:
+    driver: bridge

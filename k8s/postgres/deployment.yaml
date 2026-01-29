@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-postgres
+  namespace: rag-agent
+  labels:
+    app: rag-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-postgres
+  template:
+    metadata:
+      labels:
+        app: rag-postgres
+    spec:
+      containers:
+      - name: postgres
+        image: pgvector/pgvector:pg15-latest
+        ports:
+        - name: postgresql
+          containerPort: 5432
+          protocol: TCP
+        
+        env:
+        - name: POSTGRES_DB
+          value: rag_db
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: rag-postgres-secret
+              key: POSTGRES_USER
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rag-postgres-secret
+              key: POSTGRES_PASSWORD
+        
+        # Recursos
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        
+        # Liveness Probe
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U rag_user -d rag_db
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness Probe
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U rag_user -d rag_db
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        
+        # Volumes
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+          subPath: postgres
+        - name: init-scripts
+          mountPath: /docker-entrypoint-initdb.d
+      
+      # Volumes
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: rag-postgres-pvc
+      - name: init-scripts
+        configMap:
+          name: rag-postgres-init

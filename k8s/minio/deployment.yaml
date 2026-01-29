@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rag-minio
+  namespace: rag-agent
+  labels:
+    app: rag-minio
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rag-minio
+  template:
+    metadata:
+      labels:
+        app: rag-minio
+    spec:
+      containers:
+      - name: minio
+        image: minio/minio:latest
+        ports:
+        - name: api
+          containerPort: 9000
+          protocol: TCP
+        - name: console
+          containerPort: 9001
+          protocol: TCP
+        
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: rag-minio-secret
+              key: MINIO_ROOT_USER
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: rag-minio-secret
+              key: MINIO_ROOT_PASSWORD
+        
+        # Recursos
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        
+        # Liveness Probe
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Readiness Probe
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: api
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        
+        # Volumes
+        volumeMounts:
+        - name: minio-data
+          mountPath: /data
+        
+        # Comando
+        command:
+        - minio
+        - server
+        - /data
+        - --console-address
+        - ":9001"
+      
+      # Volumes
+      volumes:
+      - name: minio-data
+        persistentVolumeClaim:
+          claimName: rag-minio-pvc
